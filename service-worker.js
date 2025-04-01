@@ -1,4 +1,4 @@
-const CACHE_NAME = 'job-tracker-v4';
+const CACHE_NAME = 'job-tracker-v6'; // Update cache name to force re-caching
 const urlsToCache = [
   '/job-tracker/',
   '/job-tracker/index.html',
