@@ -1,6 +1,6 @@
 // Service Worker for Job Application Tracker
 // Version: 1.0.2
-const CACHE_NAME = 'job-tracker-cache-v1';
+const CACHE_NAME = 'job-tracker-cache-v3';
 const BASE_PATH = '/job-tracker'; // Base path for GitHub Pages deployment
 
 // List of assets to cache during installation
