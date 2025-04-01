@@ -7,6 +7,7 @@
   <title>Job Application Tracker</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192x192.png">
+  <link rel="icon" href="icon-192x192.png" type="image/png">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -552,86 +553,116 @@
   </div>
 
   <!-- JavaScript Libraries (minified and deferred for performance) -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
   <script src="lib/dexie.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js" defer></script>
-
   <script>
     // Register the service worker
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/job-tracker/service-worker.js')
-          .then(registration => {
-            console.log('Service Worker registered:', registration.scope);
-          })
-          .catch(error => {
-            console.error('Service Worker registration failed:', error);
+        if ('serviceWorker' in navigator) {
+          window.addEventListener('load', () => {
+            const basePath = window.location.pathname.startsWith('/job-tracker') ? '/job-tracker' : '';
+            const serviceWorkerPath = `${basePath}/service-worker.js`;
+
+            navigator.serviceWorker.register(serviceWorkerPath)
+              .then(registration => {
+                console.log('Service Worker registered:', registration.scope);
+              })
+              .catch(error => {
+                console.error('Service Worker registration failed:', error);
+              });
           });
-      });
-    }
+        }
 
-    // App Initialization
-    function init() {
-      // Database Setup
-      if (typeof Dexie === 'undefined') {
-        console.error('Dexie library failed to load. Please check the script inclusion.');
-        showToast('Database unavailable. Please try again later.', 'danger');
-        return; // Now valid because it's inside a function
-      }
-      const db = new Dexie("JobApplicationsDB");
-      db.version(32).stores({
-        applications: "++id,company,position,[dateApplied+status],type,location,jobSource,status,notes,attachments",
-        backups: "++id,timestamp,data"
-      });
+        // Declare db, state, and DOM elements in the outer scope
+        let db;
+        let state;
+        let activeTableBody;
+        let rejectedTableBody;
+        let pagination;
+        let jobForm;
+        let editForm;
+        let editModal;
+        let setGoalModal;
+        let milestoneModal;
+        let toastContainer;
 
-      // Application State
-      const state = {
-        currentPage: 1,
-        itemsPerPage: 10,
-        currentEditId: null,
-        filteredApplications: [],
-        applications: [],
-        statuses: ['Applied', 'Interview', 'Offer', 'Rejected'],
-        jobTypes: ['Onsite', 'Remote', 'Hybrid'],
-        charts: {},
-        currentAttachments: [],
-        editAttachments: [],
-        milestones: [100, 150, 200],
-        applicationGoal: parseInt(localStorage.getItem('applicationGoal')) || 200
-      };
+        // App Initialization
+        function init() {
+          // Database Setup
+          if (typeof Dexie === 'undefined') {
+            console.error('Dexie library failed to load. Please check the script inclusion.');
+            showToast('Database unavailable. Please try again later.', 'danger');
+            return;
+          }
+          db = new Dexie("JobApplicationsDB");
+          db.version(32).stores({
+            applications: "++id,company,position,[dateApplied+status],type,location,jobSource,status,notes,attachments",
+            backups: "++id,timestamp,data"
+          });
 
-    // DOM Elements
-    const activeTableBody = document.querySelector('#activeApplicationsTable tbody');
-    const rejectedTableBody = document.querySelector('#rejectedApplicationsTable tbody');
-    const pagination = document.getElementById('pagination');
-    const jobForm = document.getElementById('jobForm');
-    const editForm = document.getElementById('editForm');
-    const editModal = new bootstrap.Modal('#editModal');
-    const setGoalModal = new bootstrap.Modal('#setGoalModal');
-    const milestoneModal = new bootstrap.Modal('#milestoneModal');
-    const toastContainer = document.getElementById('toastContainer');
+          // Application State
+          state = {
+            currentPage: 1,
+            itemsPerPage: 10,
+            currentEditId: null,
+            filteredApplications: [],
+            applications: [],
+            statuses: ['Applied', 'Interview', 'Offer', 'Rejected'],
+            jobTypes: ['Onsite', 'Remote', 'Hybrid'],
+            charts: {},
+            currentAttachments: [],
+            editAttachments: [],
+            milestones: [100, 150, 200],
+            applicationGoal: parseInt(localStorage.getItem('applicationGoal')) || 200
+          };
 
-    // Initialization
-    document.addEventListener("DOMContentLoaded", async () => {
-      try {
-        console.log('Initializing app');
-        document.body.dataset.theme = localStorage.getItem('theme') || 'light';
-        init();
-        await db.open();
-        await loadApplications();
-        initEventListeners();
-        setupAutoBackup();
-        requestNotificationPermission();
-      } catch (error) {
-        console.error("Initialization failed:", error);
-        showToast('Failed to initialize', 'danger');
-      }
-    });
+          // DOM Elements
+          activeTableBody = document.querySelector('#activeApplicationsTable tbody');
+          rejectedTableBody = document.querySelector('#rejectedApplicationsTable tbody');
+          pagination = document.getElementById('pagination');
+          jobForm = document.getElementById('jobForm');
+          editForm = document.getElementById('editForm');
+          editModal = new bootstrap.Modal('#editModal');
+          setGoalModal = new bootstrap.Modal('#setGoalModal');
+          milestoneModal = new bootstrap.Modal('#milestoneModal');
+          toastContainer = document.getElementById('toastContainer');
+        }
 
+        // Call the init function when the DOM is loaded
+        document.addEventListener("DOMContentLoaded", async () => {
+          try {
+            console.log('Initializing app');
+            document.body.dataset.theme = localStorage.getItem('theme') || 'light';
+            init();
+            await db.open();
+            await loadApplications();
+            initEventListeners();
+            setupAutoBackup();
+            requestNotificationPermission();
+          } catch (error) {
+            console.error("Initialization failed:", error);
+            showToast('Failed to initialize', 'danger');
+          }
+        });
+
+        async function loadApplications() {
+          console.log('Loading applications');
+          try {
+            const applications = await db.applications.toArray();
+            state.applications = applications;
+            state.filteredApplications = applications;
+            renderTable();
+            updateCharts();
+            checkMilestones();
+          } catch (error) {
+            console.error('Error loading applications:', error);
+            showToast('Failed to load applications', 'danger');
+          }
+        }
     // Theme Toggle
     document.getElementById('themeToggle').addEventListener('click', () => {
       console.log('Theme toggle clicked');
@@ -642,18 +673,21 @@
       icon.className = newTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
     });
 
-    // Push Notifications
     function requestNotificationPermission() {
-      if ('Notification' in window && navigator.serviceWorker) {
-        Notification.requestPermission().then(permission => {
-          if (permission === 'granted') {
-            console.log('Notification permission granted');
-            scheduleDailyReminder();
+          if ('Notification' in window) {
+            Notification.requestPermission().then(permission => {
+              if (permission === 'granted') {
+                console.log('Notification permission granted');
+              } else if (permission === 'denied' || permission === 'default') {
+                console.log('Notification permission denied or ignored');
+                showToast('Notifications are disabled. Enable them in browser settings to receive reminders.', 'warning');
+              }
+            });
+          } else {
+            console.log('Notifications not supported in this browser');
+            showToast('Notifications are not supported in this browser.', 'warning');
           }
-        });
-      }
-    }
-
+        }
     function scheduleDailyReminder() {
       setInterval(() => {
         const now = new Date();
