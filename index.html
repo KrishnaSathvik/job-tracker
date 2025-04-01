@@ -1,0 +1,1410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <title>Job Application Tracker</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192x192.png">
+  <!-- Minified Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --bg-color: #f8f9fa;
+      --text-color: #212529;
+      --card-bg: #ffffff;
+      --table-bg: #ffffff;
+      --table-hover: #f1f1f1;
+      --input-bg: #ffffff;
+      --input-text: #212529;
+      --button-bg: #6c757d;
+      --button-text: #ffffff;
+    }
+    [data-theme="dark"] {
+      --bg-color: #212529;
+      --text-color: #f8f9fa;
+      --card-bg: #343a40;
+      --table-bg: #2c3034;
+      --table-hover: #495057;
+      --input-bg: #343a40;
+      --input-text: #f8f9fa;
+      --button-bg: #495057;
+      --button-text: #f8f9fa;
+    }
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      transition: all 0.3s ease;
+      font-size: 16px; /* Base font size for better readability */
+    }
+    .container-fluid {
+      padding: 10px;
+    }
+    .card {
+      background-color: var(--card-bg);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border-radius: 8px;
+    }
+    .table {
+      background-color: var(--table-bg);
+      font-size: 0.9rem;
+    }
+    .table-hover tbody tr:hover {
+      background-color: var(--table-hover);
+    }
+    .status-badge {
+      font-size: 0.75rem;
+      padding: 0.35em 0.65em;
+    }
+    .badge-applied { background-color: #6c757d; }
+    .badge-interview { background-color: #0dcaf0; }
+    .badge-offer { background-color: #198754; }
+    .badge-rejected { background-color: #dc3545; }
+    .toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1100;
+    }
+    .attachment-item {
+      display: flex;
+      align-items: center;
+      padding: 5px;
+      border-radius: 4px;
+      background-color: rgba(0,0,0,0.05);
+      margin-bottom: 5px;
+    }
+    .attachment-item:hover {
+      background-color: rgba(0,0,0,0.1);
+    }
+    .attachment-icon {
+      margin-right: 8px;
+      color: #6c757d;
+    }
+    .form-control, .form-select {
+      background-color: var(--input-bg);
+      color: var(--input-text);
+      border-color: var(--text-color);
+      font-size: 0.9rem;
+    }
+    .form-control::placeholder {
+      color: var(--text-color);
+      opacity: 0.6;
+    }
+    .btn-outline-secondary {
+      background-color: var(--button-bg);
+      color: var(--button-text);
+      border-color: var(--button-bg);
+    }
+    .btn-outline-secondary:hover {
+      background-color: var(--table-hover);
+      color: var(--text-color);
+    }
+    .input-group-text {
+      background-color: var(--input-bg);
+      color: var(--input-text);
+      border-color: var(--text-color);
+    }
+    .progress {
+      height: 15px;
+      background-color: #e9ecef;
+      border-radius: 10px;
+    }
+    .progress-bar {
+      background-color: #28a745;
+      border-radius: 10px;
+    }
+    .milestone-modal .modal-content {
+      background: linear-gradient(135deg, #ffeb3b, #ffd700);
+      color: #212529;
+      text-align: center;
+    }
+    .milestone-modal .modal-header {
+      border-bottom: none;
+    }
+    .milestone-modal .modal-footer {
+      border-top: none;
+      justify-content: center;
+    }
+    /* Mobile-specific styles */
+    @media (max-width: 576px) {
+      h1 {
+        font-size: 1.5rem;
+      }
+      .card-header h5 {
+        font-size: 1rem;
+      }
+      .form-label {
+        font-size: 0.9rem;
+      }
+      .form-control, .form-select, .btn {
+        font-size: 0.9rem;
+      }
+      .table {
+        font-size: 0.85rem;
+      }
+      .table th, .table td {
+        padding: 0.5rem;
+        white-space: nowrap;
+      }
+      .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .optional-column, .salary-column {
+        display: none;
+      }
+      .nav-tabs .nav-link {
+        font-size: 0.9rem;
+        padding: 0.5rem;
+      }
+      .modal-dialog {
+        margin: 0.5rem;
+      }
+      .modal-content {
+        font-size: 0.9rem;
+      }
+      .btn-sm {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+      }
+    }
+  </style>
+</head>
+<body data-theme="light">
+  <div class="container-fluid my-2">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h1 class="mb-0"><i class="fas fa-briefcase me-2"></i>Job Tracker</h1>
+      <button id="themeToggle" class="btn btn-outline-secondary btn-sm"><i class="fas fa-moon"></i></button>
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-3" id="appTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tracker-tab" data-bs-toggle="tab" data-bs-target="#tracker" type="button" role="tab" aria-controls="tracker">
+          <i class="fas fa-tasks me-1"></i>Tracker
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="analytics-tab" data-bs-toggle="tab" data-bs-target="#analytics" type="button" role="tab" aria-controls="analytics">
+          <i class="fas fa-chart-pie me-1"></i>Analytics
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content" id="appTabContent">
+      <!-- Tracker Tab -->
+      <div class="tab-pane fade show active" id="tracker" role="tabpanel" aria-labelledby="tracker-tab">
+        <!-- Add New Application Form -->
+        <div class="card mb-3 shadow-sm">
+          <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Add Application</h5>
+          </div>
+          <div class="card-body">
+            <form id="jobForm" novalidate>
+              <div class="row g-2">
+                <div class="col-12 col-md-4">
+                  <label class="form-label">Company*</label>
+                  <input type="text" id="company" class="form-control" required aria-required="true">
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label">Position*</label>
+                  <input type="text" id="position" class="form-control" required aria-required="true">
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label">Date Applied*</label>
+                  <input type="date" id="dateApplied" class="form-control" required aria-required="true">
+                </div>
+                <div class="col-12 col-md-3">
+                  <label class="form-label">Job Type*</label>
+                  <select id="type" class="form-select" required aria-required="true">
+                    <option value="Onsite">Onsite</option>
+                    <option value="Remote">Remote</option>
+                    <option value="Hybrid">Hybrid</option>
+                  </select>
+                </div>
+                <div class="col-12 col-md-3">
+                  <label class="form-label">Location</label>
+                  <input type="text" id="location" class="form-control">
+                </div>
+                <div class="col-12 col-md-3">
+                  <label class="form-label">Salary</label>
+                  <input type="text" id="salary" class="form-control" placeholder="e.g. $60,000/year">
+                </div>
+                <div class="col-12 col-md-3">
+                  <label class="form-label">Job Source</label>
+                  <input type="text" id="jobSource" class="form-control" list="jobSources" placeholder="e.g. LinkedIn">
+                  <datalist id="jobSources">
+                    <option value="LinkedIn">
+                    <option value="Indeed">
+                    <option value="Glassdoor">
+                    <option value="Company Website">
+                  </datalist>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Notes</label>
+                  <textarea id="notes" class="form-control" rows="2"></textarea>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Attachments</label>
+                  <div id="attachmentsContainer" class="mb-2"></div>
+                  <input type="file" id="attachmentInput" class="form-control" multiple>
+                </div>
+              </div>
+              <div class="mt-2">
+                <button type="submit" class="btn btn-success btn-sm">
+                  <i class="fas fa-plus me-1"></i> Add
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Goal Setting Section -->
+        <div class="card mb-3 shadow-sm">
+          <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-bullseye me-2"></i>Application Goal</h5>
+          </div>
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span>Goal: <span id="applicationGoal">200</span> applications</span>
+              <span id="progressPercentage">0%</span>
+            </div>
+            <div class="progress mb-3">
+              <div id="goalProgressBar" class="progress-bar bg-success" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+            <button id="setGoalBtn" class="btn btn-outline-secondary btn-sm">Set Goal</button>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="row mb-2 g-2">
+          <div class="col-12 col-md-3">
+            <div class="input-group">
+              <span class="input-group-text"><i class="fas fa-search"></i></span>
+              <input type="text" id="searchInput" class="form-control" placeholder="Search..." aria-label="Search applications">
+              <button class="btn btn-outline-secondary btn-sm" type="button" id="clearSearch" aria-label="Clear search">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+          <div class="col-12 col-md-6">
+            <div class="d-flex justify-content-end gap-2">
+              <button id="importDataBtn" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-file-import me-1"></i> Import
+              </button>
+              <input type="file" id="importFileInput" style="display: none;" accept=".json">
+              <button id="exportJSON" class="btn btn-outline-info btn-sm">
+                <i class="fas fa-file-export me-1"></i> JSON
+              </button>
+              <button id="exportPDF" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-file-pdf me-1"></i> PDF
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Applications Tables -->
+        <div class="accordion" id="applicationsAccordion">
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#activeCollapse" aria-expanded="true" aria-controls="activeCollapse">
+                Active Applications
+              </button>
+            </h2>
+            <div id="activeCollapse" class="accordion-collapse collapse show" aria-labelledby="activeHeading">
+              <div class="accordion-body">
+                <div class="table-responsive mb-3">
+                  <table id="activeApplicationsTable" class="table table-bordered table-hover">
+                    <thead class="table-light">
+                      <tr>
+                        <th>#</th>
+                        <th>Date</th>
+                        <th>Company</th>
+                        <th>Position</th>
+                        <th>Type</th>
+                        <th>Location</th>
+                        <th class="salary-column">Salary</th>
+                        <th class="optional-column">Source</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#rejectedCollapse" aria-expanded="false" aria-controls="rejectedCollapse">
+                Rejected Applications
+              </button>
+            </h2>
+            <div id="rejectedCollapse" class="accordion-collapse collapse" aria-labelledby="rejectedHeading">
+              <div class="accordion-body">
+                <div class="table-responsive mb-3">
+                  <table id="rejectedApplicationsTable" class="table table-bordered table-hover">
+                    <thead class="table-light">
+                      <tr>
+                        <th>#</th>
+                        <th>Date</th>
+                        <th>Company</th>
+                        <th>Position</th>
+                        <th>Type</th>
+                        <th>Location</th>
+                        <th class="salary-column">Salary</th>
+                        <th class="optional-column">Source</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pagination -->
+        <nav aria-label="Page navigation">
+          <ul class="pagination justify-content-center" id="pagination"></ul>
+        </nav>
+      </div>
+
+      <!-- Analytics Tab -->
+      <div class="tab-pane fade" id="analytics" role="tabpanel" aria-labelledby="analytics-tab">
+        <div class="row mb-2">
+          <div class="col-12 col-md-6">
+            <label class="form-label">Date Range</label>
+            <div class="input-group">
+              <input type="date" id="analyticsStartDate" class="form-control" aria-label="Analytics start date">
+              <input type="date" id="analyticsEndDate" class="form-control" aria-label="Analytics end date">
+            </div>
+          </div>
+          <div class="col-12 col-md-6 d-flex justify-content-end gap-2 mt-2 mt-md-0">
+            <button id="exportStatusChart" class="btn btn-outline-info btn-sm"><i class="fas fa-download me-1"></i> Status</button>
+            <button id="exportTimelineChart" class="btn btn-outline-info btn-sm"><i class="fas fa-download me-1"></i> Timeline</button>
+          </div>
+        </div>
+        <div class="row g-3">
+          <div class="col-12 col-lg-6">
+            <div class="card h-100">
+              <div class="card-header bg-primary text-white">
+                <h5><i class="fas fa-chart-pie me-2"></i>Status</h5>
+              </div>
+              <div class="card-body">
+                <canvas id="statusChart" aria-label="Application status distribution"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-6">
+            <div class="card h-100">
+              <div class="card-header bg-success text-white">
+                <h5><i class="fas fa-percentage me-2"></i>Success Rate</h5>
+              </div>
+              <div class="card-body text-center">
+                <h2 id="successRate">0%</h2>
+                <p>Percentage of applications reaching "Offer"</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-6">
+            <div class="card h-100">
+              <div class="card-header bg-primary text-white">
+                <h5><i class="fas fa-chart-line me-2"></i>Timeline</h5>
+              </div>
+              <div class="card-body">
+                <canvas id="timelineChart" aria-label="Applications timeline"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-6">
+            <div class="card h-100">
+              <div class="card-header bg-primary text-white">
+                <h5><i class="fas fa-laptop-house me-2"></i>Job Type</h5>
+              </div>
+              <div class="card-body">
+                <canvas id="typeChart" aria-label="Job type distribution"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Application Modal -->
+    <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title" id="editModalLabel"><i class="fas fa-edit me-2"></i>Edit Application</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="editForm" novalidate>
+              <div class="row g-2">
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Company*</label>
+                  <input type="text" id="editCompany" class="form-control" required aria-required="true">
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Position*</label>
+                  <input type="text" id="editPosition" class="form-control" required aria-required="true">
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label">Date Applied*</label>
+                  <input type="date" id="editDateApplied" class="form-control" required aria-required="true">
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label">Job Type*</label>
+                  <select id="editType" class="form-select" required aria-required="true">
+                    <option value="Onsite">Onsite</option>
+                    <option value="Remote">Remote</option>
+                    <option value="Hybrid">Hybrid</option>
+                  </select>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label">Status*</label>
+                  <select id="editStatus" class="form-select" required aria-required="true">
+                    <option value="Applied">Applied</option>
+                    <option value="Interview">Interview</option>
+                    <option value="Offer">Offer</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Location</label>
+                  <input type="text" id="editLocation" class="form-control">
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Salary</label>
+                  <input type="text" id="editSalary" class="form-control" placeholder="e.g. $60,000/year">
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Job Source</label>
+                  <input type="text" id="editJobSource" class="form-control" list="jobSources">
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Notes</label>
+                  <textarea id="editNotes" class="form-control" rows="2"></textarea>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Attachments</label>
+                  <div id="editAttachmentsContainer" class="mb-2"></div>
+                  <input type="file" id="editAttachmentInput" class="form-control" multiple>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary btn-sm">Save</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Goal Setting Modal -->
+    <div class="modal fade" id="setGoalModal" tabindex="-1" aria-labelledby="setGoalModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header bg-info text-white">
+            <h5 class="modal-title" id="setGoalModalLabel"><i class="fas fa-bullseye me-2"></i>Set Goal</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="goalForm">
+              <div class="mb-3">
+                <label for="newGoal" class="form-label">New Goal (Applications)*</label>
+                <input type="number" id="newGoal" class="form-control" min="1" required aria-required="true">
+              </div>
+              <button type="submit" class="btn btn-primary btn-sm">Save Goal</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Milestone Modal -->
+    <div class="modal fade milestone-modal" id="milestoneModal" tabindex="-1" aria-labelledby="milestoneModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="milestoneModalLabel"><i class="fas fa-trophy me-2"></i>Milestone Achieved!</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p id="milestoneMessage">Congratulations! You've reached 100 applications!</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-primary btn-sm" data-bs-dismiss="modal">Awesome!</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+  </div>
+
+  <!-- JavaScript Libraries (minified and deferred for performance) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/dexie@3.2.2/dist/dexie.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.28/dist/jspdf.plugin.autotable.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js" defer></script>
+
+  <script>
+    // Register the service worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(registration => {
+            console.log('Service Worker registered:', registration.scope);
+          })
+          .catch(error => {
+            console.error('Service Worker registration failed:', error);
+          });
+      });
+    }
+
+    // Database Setup
+    const db = new Dexie("JobApplicationsDB");
+    db.version(32).stores({
+      applications: "++id,company,position,[dateApplied+status],type,location,jobSource,status",
+      backups: "++id,timestamp,data"
+    });
+
+    // Application State
+    const state = {
+      currentPage: 1,
+      itemsPerPage: 10,
+      currentEditId: null,
+      filteredApplications: [],
+      applications: [],
+      statuses: ['Applied', 'Interview', 'Offer', 'Rejected'],
+      jobTypes: ['Onsite', 'Remote', 'Hybrid'],
+      charts: {},
+      currentAttachments: [],
+      editAttachments: [],
+      milestones: [100, 150, 200],
+      applicationGoal: parseInt(localStorage.getItem('applicationGoal')) || 200
+    };
+
+    // DOM Elements
+    const activeTableBody = document.querySelector('#activeApplicationsTable tbody');
+    const rejectedTableBody = document.querySelector('#rejectedApplicationsTable tbody');
+    const pagination = document.getElementById('pagination');
+    const jobForm = document.getElementById('jobForm');
+    const editForm = document.getElementById('editForm');
+    const editModal = new bootstrap.Modal('#editModal');
+    const setGoalModal = new bootstrap.Modal('#setGoalModal');
+    const milestoneModal = new bootstrap.Modal('#milestoneModal');
+    const toastContainer = document.getElementById('toastContainer');
+
+    // Initialization
+    document.addEventListener("DOMContentLoaded", async () => {
+      try {
+        document.body.dataset.theme = localStorage.getItem('theme') || 'light';
+        await db.open();
+        await loadApplications();
+        initEventListeners();
+        setupAutoBackup();
+        requestNotificationPermission();
+      } catch (error) {
+        console.error("Initialization failed:", error);
+        showToast('Failed to initialize', 'danger');
+      }
+    });
+
+    // Theme Toggle
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      const newTheme = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
+      document.body.dataset.theme = newTheme;
+      localStorage.setItem('theme', newTheme);
+      const icon = document.getElementById('themeToggle').querySelector('i');
+      icon.className = newTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+    });
+
+    // Push Notifications
+    function requestNotificationPermission() {
+      if ('Notification' in window && navigator.serviceWorker) {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            console.log('Notification permission granted');
+            scheduleDailyReminder();
+          }
+        });
+      }
+    }
+
+    function scheduleDailyReminder() {
+      setInterval(() => {
+        const now = new Date();
+        if (now.getHours() === 9 && now.getMinutes() === 0) { // 9:00 AM daily
+          sendNotification('Job Tracker Reminder', 'Have you added your job applications today?');
+        }
+      }, 60000); // Check every minute
+    }
+
+    function sendNotification(title, body) {
+      if (Notification.permission === 'granted') {
+        navigator.serviceWorker.ready.then(registration => {
+          registration.showNotification(title, {
+            body: body,
+            icon: 'icon-192x192.png',
+            badge: 'icon-192x192.png'
+          });
+        });
+      }
+    }
+
+    // Core Application Functions
+    async function loadApplications() {
+      try {
+        let apps = await db.applications.orderBy('dateApplied').reverse().toArray();
+        apps = apps.map(app => ({
+          ...app,
+          status: state.statuses.includes(app.status) ? app.status : 'Applied',
+          type: state.jobTypes.includes(app.type) ? app.type : 'Remote',
+          salary: app.salary || '-',
+          dateApplied: app.dateApplied
+        }));
+        state.applications = apps;
+        filterApplications(document.getElementById('searchInput')?.value || '');
+        renderApplicationsTable();
+        renderPagination();
+        if (!state.charts.status) setupCharts();
+        updateCharts();
+        updateGoalProgress();
+
+        const appCount = state.applications.length;
+        checkMilestones(appCount);
+      } catch (error) {
+        console.error('Error loading applications:', error);
+        showToast('Failed to load applications', 'danger');
+      }
+    }
+
+    function renderApplicationsTable() {
+      activeTableBody.innerHTML = '';
+      rejectedTableBody.innerHTML = '';
+      const startIndex = (state.currentPage - 1) * state.itemsPerPage;
+      const endIndex = startIndex + state.itemsPerPage;
+      const paginatedApps = state.filteredApplications.slice(startIndex, endIndex);
+
+      if (paginatedApps.length === 0) {
+        activeTableBody.innerHTML = '<tr><td colspan="10" class="text-center py-4 text-muted">No applications found</td></tr>';
+        rejectedTableBody.innerHTML = '<tr><td colspan="10" class="text-center py-4 text-muted">No rejected applications</td></tr>';
+        return;
+      }
+
+      const activeApps = paginatedApps.filter(app => app.status !== 'Rejected');
+      const rejectedApps = paginatedApps.filter(app => app.status === 'Rejected');
+
+      [activeApps, rejectedApps].forEach((apps, idx) => {
+        const tbody = idx === 0 ? activeTableBody : rejectedTableBody;
+        if (apps.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="10" class="text-center py-4 text-muted">No ${idx === 0 ? 'active' : 'rejected'} applications</td></tr>`;
+        } else {
+          apps.forEach((app, index) => renderApplicationRow(tbody, app, startIndex + index + 1));
+        }
+      });
+    }
+
+    function renderApplicationRow(tableBody, app, appNumber) {
+      const row = tableBody.insertRow();
+      row.className = 'align-middle';
+      row.dataset.id = app.id; // For touch gestures
+      const dateApplied = new Date(app.dateApplied);
+      const formattedDate = new Date(dateApplied.getTime() + dateApplied.getTimezoneOffset() * 60000).toLocaleDateString();
+      row.innerHTML = `
+        <td>${appNumber}</td>
+        <td>${formattedDate}</td>
+        <td>${app.company || '-'}</td>
+        <td>${app.position || '-'}</td>
+        <td>${app.type || '-'}</td>
+        <td>${app.location || '-'}</td>
+        <td class="salary-column">${app.salary || '-'}</td>
+        <td class="optional-column">${app.jobSource || '-'}</td>
+        <td><span class="badge status-badge badge-${app.status.toLowerCase()}">${app.status}</span></td>
+        <td class="text-nowrap"></td>
+      `;
+      const actionsCell = row.cells[9];
+
+      if (app.notes) {
+        const notesBtn = document.createElement('button');
+        notesBtn.className = 'btn btn-sm btn-outline-info me-1';
+        notesBtn.title = 'View Notes';
+        notesBtn.setAttribute('aria-label', 'View notes');
+        notesBtn.innerHTML = '<i class="fas fa-sticky-note"></i>';
+        notesBtn.addEventListener('click', () => alert(`Notes:\n\n${app.notes}`));
+        actionsCell.appendChild(notesBtn);
+      }
+
+      if (app.attachments?.length) {
+        const attachmentsBtn = document.createElement('button');
+                attachmentsBtn.className = 'btn btn-sm btn-outline-secondary me-1';
+                attachmentsBtn.title = `${app.attachments.length} Attachment(s)`;
+                attachmentsBtn.setAttribute('aria-label', 'View attachments');
+                attachmentsBtn.innerHTML = '<i class="fas fa-paperclip"></i>';
+                attachmentsBtn.addEventListener('click', () => showAttachmentsPopup(app.attachments));
+                actionsCell.appendChild(attachmentsBtn);
+              }
+
+              const editBtn = document.createElement('button');
+              editBtn.className = 'btn btn-sm btn-outline-warning me-1';
+              editBtn.setAttribute('aria-label', 'Edit application');
+              editBtn.innerHTML = '<i class="fas fa-edit"></i>';
+              editBtn.addEventListener('click', () => openEditModal(app));
+              actionsCell.appendChild(editBtn);
+
+              const deleteBtn = document.createElement('button');
+              deleteBtn.className = 'btn btn-sm btn-outline-danger';
+              deleteBtn.setAttribute('aria-label', 'Delete application');
+              deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+              deleteBtn.addEventListener('click', () => deleteApplication(app.id));
+              actionsCell.appendChild(deleteBtn);
+
+              // Add touch gestures using Hammer.js
+              const hammer = new Hammer(row);
+              hammer.on('swipeleft', () => {
+                if (confirm('Delete this application?')) {
+                  deleteApplication(app.id);
+                }
+              });
+            }
+
+            function showAttachmentsPopup(attachments) {
+              const popup = document.createElement('div');
+              popup.className = 'card shadow';
+              popup.style.position = 'fixed';
+              popup.style.zIndex = '1000';
+              popup.style.minWidth = '250px';
+              popup.style.maxWidth = '90%';
+              popup.style.maxHeight = '50vh';
+              popup.style.overflowY = 'auto';
+
+              const popupHeader = document.createElement('div');
+              popupHeader.className = 'card-header bg-primary text-white';
+              popupHeader.innerHTML = '<h6 class="mb-0">Attachments</h6>';
+
+              const popupBody = document.createElement('div');
+              popupBody.className = 'card-body p-2';
+
+              attachments.forEach(attachment => {
+                const item = document.createElement('div');
+                item.className = 'attachment-item';
+                item.innerHTML = `
+                  <i class="fas fa-paperclip attachment-icon"></i>
+                  <span class="text-truncate" style="max-width: 150px;">${attachment.name || 'Unnamed'}</span>
+                  <a href="${attachment.data}" download="${attachment.name}" class="btn btn-sm btn-link text-primary ms-auto">
+                    <i class="fas fa-download"></i>
+                  </a>
+                `;
+                popupBody.appendChild(item);
+              });
+
+              popup.appendChild(popupHeader);
+              popup.appendChild(popupBody);
+
+              popup.style.left = '50%';
+              popup.style.top = '50%';
+              popup.style.transform = 'translate(-50%, -50%)';
+
+              document.body.appendChild(popup);
+
+              const closePopup = (e) => {
+                if (!popup.contains(e.target)) {
+                  document.body.removeChild(popup);
+                  document.removeEventListener('click', closePopup);
+                }
+              };
+
+              setTimeout(() => document.addEventListener('click', closePopup), 100);
+            }
+
+            // Milestone Functions
+            function checkMilestones(appCount) {
+              const celebratedMilestones = JSON.parse(localStorage.getItem('celebratedMilestones')) || [];
+              const reachedMilestone = state.milestones.find(milestone => appCount >= milestone && !celebratedMilestones.includes(milestone));
+
+              if (reachedMilestone) {
+                document.getElementById('milestoneMessage').textContent = `Congratulations! You've reached ${reachedMilestone} applications!`;
+                milestoneModal.show();
+                confetti({
+                  particleCount: 100,
+                  spread: 70,
+                  origin: { y: 0.6 }
+                });
+                sendNotification('Milestone Achieved!', `You've reached ${reachedMilestone} applications!`);
+                celebratedMilestones.push(reachedMilestone);
+                localStorage.setItem('celebratedMilestones', JSON.stringify(celebratedMilestones));
+              }
+            }
+
+            // Goal Progress
+            function updateGoalProgress() {
+              const totalApps = state.applications.length;
+              const goal = state.applicationGoal;
+              const percentage = goal > 0 ? Math.min((totalApps / goal) * 100, 100) : 0;
+
+              document.getElementById('applicationGoal').textContent = goal;
+              document.getElementById('progressPercentage').textContent = `${Math.round(percentage)}%`;
+              const progressBar = document.getElementById('goalProgressBar');
+              progressBar.style.width = `${percentage}%`;
+              progressBar.setAttribute('aria-valuenow', percentage);
+            }
+
+            // Event Listeners
+            function initEventListeners() {
+              ['company', 'position', 'dateApplied', 'type'].forEach(id => {
+                document.getElementById(id)?.addEventListener('input', validateField);
+                document.getElementById(`edit${id.charAt(0).toUpperCase() + id.slice(1)}`)?.addEventListener('input', validateField);
+              });
+
+              jobForm?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (!jobForm.checkValidity()) {
+                  showToast('Please fill all required fields', 'danger');
+                  return;
+                }
+                const newApp = {
+                  company: document.getElementById('company').value,
+                  position: document.getElementById('position').value,
+                  dateApplied: document.getElementById('dateApplied').value,
+                  type: document.getElementById('type').value,
+                  location: document.getElementById('location').value,
+                  salary: document.getElementById('salary').value || '-',
+                  jobSource: document.getElementById('jobSource').value,
+                  notes: document.getElementById('notes').value,
+                  status: 'Applied',
+                  attachments: state.currentAttachments
+                };
+                try {
+                  await db.applications.add(newApp);
+                  jobForm.reset();
+                  state.currentAttachments = [];
+                  document.getElementById('attachmentsContainer').innerHTML = '';
+                  await loadApplications();
+                  updateGoalProgress();
+                  showToast('Application added!', 'success');
+                } catch (error) {
+                  console.error('Error adding application:', error);
+                  showToast('Failed to add application', 'danger');
+                }
+              });
+
+              editForm?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (!editForm.checkValidity()) {
+                  showToast('Please fill all required fields', 'danger');
+                  return;
+                }
+                const updatedApp = {
+                  company: document.getElementById('editCompany').value,
+                  position: document.getElementById('editPosition').value,
+                  dateApplied: document.getElementById('editDateApplied').value,
+                  type: document.getElementById('editType').value,
+                  location: document.getElementById('editLocation').value,
+                  salary: document.getElementById('editSalary').value || '-',
+                  jobSource: document.getElementById('editJobSource').value,
+                  notes: document.getElementById('editNotes').value,
+                  status: document.getElementById('editStatus').value,
+                  attachments: state.editAttachments
+                };
+                try {
+                  await db.applications.update(state.currentEditId, updatedApp);
+                  editModal.hide();
+                  await loadApplications();
+                  updateGoalProgress();
+                  showToast('Application updated!', 'success');
+                } catch (error) {
+                  console.error('Error updating application:', error);
+                  showToast('Failed to update application', 'danger');
+                }
+              });
+
+              document.getElementById('attachmentInput')?.addEventListener('change', handleFileSelect);
+              document.getElementById('editAttachmentInput')?.addEventListener('change', handleEditFileSelect);
+
+              let debounceTimer;
+              document.getElementById('searchInput')?.addEventListener('input', (e) => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => filterApplications(e.target.value), 300);
+              });
+              document.getElementById('clearSearch')?.addEventListener('click', () => {
+                document.getElementById('searchInput').value = '';
+                filterApplications('');
+              });
+
+              document.getElementById('importDataBtn')?.addEventListener('click', () => document.getElementById('importFileInput').click());
+              document.getElementById('importFileInput')?.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onload = async (event) => {
+                    try {
+                      const apps = JSON.parse(event.target.result);
+                      if (Array.isArray(apps)) {
+                        await db.applications.clear();
+                        await db.applications.bulkAdd(apps);
+                        showToast(`Imported ${apps.length} applications!`, 'success');
+                        await loadApplications();
+                        updateGoalProgress();
+                      } else {
+                        showToast('Invalid JSON format', 'danger');
+                      }
+                    } catch (error) {
+                      console.error('Import error:', error);
+                      showToast('Failed to import data', 'danger');
+                    }
+                  };
+                  reader.onerror = () => showToast('Error reading file', 'danger');
+                  reader.readAsText(file);
+                }
+              });
+
+              document.getElementById('exportJSON')?.addEventListener('click', async () => {
+                try {
+                  const apps = await db.applications.toArray();
+                  const jsonString = JSON.stringify(apps, null, 2);
+                  const blob = new Blob([jsonString], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = 'job-applications.json';
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  URL.revokeObjectURL(url);
+                  showToast(`Exported ${apps.length} applications`, 'success');
+                } catch (error) {
+                  console.error('Export JSON error:', error);
+                  showToast('Export failed', 'danger');
+                }
+              });
+
+              document.getElementById('exportPDF')?.addEventListener('click', exportToPDF);
+
+              document.getElementById('analytics-tab')?.addEventListener('shown.bs.tab', () => {
+                Object.values(state.charts).forEach(chart => chart.resize());
+              });
+              ['analyticsStartDate', 'analyticsEndDate'].forEach(id => {
+                document.getElementById(id)?.addEventListener('change', updateCharts);
+              });
+              document.getElementById('exportStatusChart')?.addEventListener('click', () => exportChart(state.charts.status, 'status-chart.png'));
+              document.getElementById('exportTimelineChart')?.addEventListener('click', () => exportChart(state.charts.timeline, 'timeline-chart.png'));
+
+              document.getElementById('setGoalBtn')?.addEventListener('click', () => {
+                document.getElementById('newGoal').value = state.applicationGoal;
+                setGoalModal.show();
+              });
+
+              document.getElementById('goalForm')?.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const newGoalInput = document.getElementById('newGoal');
+                const newGoal = parseInt(newGoalInput.value);
+
+                if (isNaN(newGoal) || newGoal < 1) {
+                  showToast('Please enter a valid goal (at least 1)', 'danger');
+                  return;
+                }
+
+                state.applicationGoal = newGoal;
+                localStorage.setItem('applicationGoal', newGoal);
+                updateGoalProgress();
+                setGoalModal.hide();
+                showToast('Goal updated!', 'success');
+              });
+            }
+
+            function validateField(e) {
+              const input = e.target;
+              input.classList.toggle('invalid-field', !input.value && input.required);
+              input.classList.toggle('valid-field', !!input.value);
+            }
+
+            function handleFileSelect(e) {
+              state.currentAttachments = [];
+              const files = e.target.files;
+              const container = document.getElementById('attachmentsContainer');
+              container.innerHTML = '';
+
+              for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const reader = new FileReader();
+
+                reader.onload = (event) => {
+                  state.currentAttachments.push({
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    data: event.target.result
+                  });
+
+                  const item = document.createElement('div');
+                  item.className = 'attachment-item';
+                  item.innerHTML = `
+                    <i class="fas fa-paperclip attachment-icon"></i>
+                    <span>${file.name}</span>
+                    <button class="btn btn-sm btn-link text-danger ms-auto" data-name="${file.name}">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  `;
+                  container.appendChild(item);
+
+                  item.querySelector('button').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    state.currentAttachments = state.currentAttachments.filter(a => a.name !== file.name);
+                    container.removeChild(item);
+                  });
+                };
+
+                reader.readAsDataURL(file);
+              }
+            }
+
+            function handleEditFileSelect(e) {
+              const files = e.target.files;
+              const container = document.getElementById('editAttachmentsContainer');
+
+              for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const reader = new FileReader();
+
+                reader.onload = (event) => {
+                  state.editAttachments.push({
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    data: event.target.result
+                  });
+
+                  const item = document.createElement('div');
+                  item.className = 'attachment-item';
+                  item.innerHTML = `
+                    <i class="fas fa-paperclip attachment-icon"></i>
+                    <span>${file.name}</span>
+                    <a href="${event.target.result}" download="${file.name}" class="btn btn-sm btn-link text-primary ms-auto">
+                      <i class="fas fa-download"></i>
+                    </a>
+                    <button class="btn btn-sm btn-link text-danger" data-name="${file.name}">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  `;
+                  container.appendChild(item);
+
+                  item.querySelector('button').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    state.editAttachments = state.editAttachments.filter(a => a.name !== file.name);
+                    container.removeChild(item);
+                  });
+                };
+
+                reader.readAsDataURL(file);
+              }
+            }
+
+            // Utility Functions
+            function showToast(message, type) {
+              const toastEl = document.createElement('div');
+              toastEl.className = `toast show align-items-center text-white bg-${type} border-0`;
+              toastEl.innerHTML = `
+                <div class="d-flex">
+                  <div class="toast-body">${message}</div>
+                  <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+              `;
+              toastContainer.appendChild(toastEl);
+              setTimeout(() => toastContainer.removeChild(toastEl), 3000);
+            }
+
+            function filterApplications(searchTerm) {
+              state.filteredApplications = state.applications.filter(app => {
+                const matchesSearch = !searchTerm || (
+                  app.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  app.position?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  app.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  app.notes?.toLowerCase().includes(searchTerm.toLowerCase())
+                );
+                return matchesSearch;
+              });
+              state.currentPage = 1;
+              renderApplicationsTable();
+              renderPagination();
+            }
+
+            function renderPagination() {
+              if (!pagination) return;
+              pagination.innerHTML = '';
+              const totalPages = Math.ceil(state.filteredApplications.length / state.itemsPerPage);
+
+              if (totalPages <= 1) return;
+
+              const prevLi = document.createElement('li');
+              prevLi.className = `page-item ${state.currentPage === 1 ? 'disabled' : ''}`;
+              prevLi.innerHTML = `<a class="page-link" href="#">Previous</a>`;
+              prevLi.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (state.currentPage > 1) {
+                  state.currentPage--;
+                  renderApplicationsTable();
+                  renderPagination();
+                }
+              });
+              pagination.appendChild(prevLi);
+
+              for (let i = 1; i <= totalPages; i++) {
+                const pageLi = document.createElement('li');
+                pageLi.className = `page-item ${i === state.currentPage ? 'active' : ''}`;
+                pageLi.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+                pageLi.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  state.currentPage = i;
+                  renderApplicationsTable();
+                  renderPagination();
+                });
+                pagination.appendChild(pageLi);
+              }
+
+              const nextLi = document.createElement('li');
+              nextLi.className = `page-item ${state.currentPage === totalPages ? 'disabled' : ''}`;
+              nextLi.innerHTML = `<a class="page-link" href="#">Next</a>`;
+              nextLi.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (state.currentPage < totalPages) {
+                  state.currentPage++;
+                  renderApplicationsTable();
+                  renderPagination();
+                }
+              });
+              pagination.appendChild(nextLi);
+            }
+
+            async function openEditModal(app) {
+              state.currentEditId = app.id;
+              state.editAttachments = app.attachments || [];
+              document.getElementById('editCompany').value = app.company;
+              document.getElementById('editPosition').value = app.position;
+              document.getElementById('editDateApplied').value = app.dateApplied;
+              document.getElementById('editType').value = app.type;
+              document.getElementById('editStatus').value = app.status;
+              document.getElementById('editLocation').value = app.location;
+              document.getElementById('editSalary').value = app.salary === '-' ? '' : app.salary;
+              document.getElementById('editJobSource').value = app.jobSource;
+              document.getElementById('editNotes').value = app.notes;
+
+              const container = document.getElementById('editAttachmentsContainer');
+              container.innerHTML = '';
+              state.editAttachments.forEach(attachment => {
+                const item = document.createElement('div');
+                item.className = 'attachment-item';
+                item.innerHTML = `
+                  <i class="fas fa-paperclip attachment-icon"></i>
+                  <span>${attachment.name}</span>
+                  <a href="${attachment.data}" download="${attachment.name}" class="btn btn-sm btn-link text-primary ms-auto"><i class="fas fa-download"></i></a>
+                  <button class="btn btn-sm btn-link text-danger" data-name="${attachment.name}"><i class="fas fa-times"></i></button>
+                `;
+                item.querySelector('button').addEventListener('click', () => {
+                  state.editAttachments = state.editAttachments.filter(a => a.name !== attachment.name);
+                  container.removeChild(item);
+                });
+                container.appendChild(item);
+              });
+              editModal.show();
+            }
+
+            async function deleteApplication(id) {
+              try {
+                await db.applications.delete(id);
+                await loadApplications();
+                updateGoalProgress();
+                showToast('Application deleted', 'success');
+              } catch (error) {
+                console.error('Error deleting application:', error);
+                showToast('Failed to delete application', 'danger');
+              }
+            }
+
+            function exportToPDF() {
+              try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                doc.setFontSize(20);
+                doc.text('Job Applications', 105, 15, { align: 'center' });
+                const headers = ['#', 'Date', 'Company', 'Position', 'Type', 'Location', 'Salary', 'Source', 'Status'];
+                const data = state.filteredApplications.map((app, i) => {
+                  const dateApplied = new Date(app.dateApplied);
+                  const formattedDate = new Date(dateApplied.getTime() + dateApplied.getTimezoneOffset() * 60000).toLocaleDateString();
+                  return [
+                    i + 1,
+                    formattedDate,
+                    app.company || '-',
+                    app.position || '-',
+                    app.type || '-',
+                    app.location || '-',
+                    app.salary || '-',
+                    app.jobSource || '-',
+                    app.status || '-'
+                  ];
+                });
+                doc.autoTable({
+                  head: [headers],
+                  body: data,
+                  startY: 25,
+                  styles: { fontSize: 8, cellPadding: 2 },
+                  headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+                  alternateRowStyles: { fillColor: [245, 245, 245] }
+                });
+                doc.save('job-applications.pdf');
+                showToast('PDF exported successfully', 'success');
+              } catch (error) {
+                console.error('PDF export error:', error);
+                showToast('PDF export failed', 'danger');
+              }
+            }
+
+            // Backup System
+            function setupAutoBackup() {
+              setInterval(createBackup, 3600000);
+              window.addEventListener('beforeunload', createBackup);
+              createBackup();
+            }
+
+            async function createBackup() {
+              try {
+                const apps = await db.applications.toArray();
+                const timestamp = new Date().toISOString();
+                const backupData = JSON.stringify(apps);
+                await db.backups.add({ timestamp, data: backupData });
+                const essentialData = apps.map(app => ({
+                  id: app.id, company: app.company, dateApplied: app.dateApplied, status: app.status
+                }));
+                localStorage.setItem('jobTrackerBackup', JSON.stringify(essentialData));
+              } catch (error) {
+                console.error('Backup error:', error);
+              }
+            }
+
+            // Analytics Charts (Lazy-loaded on demand)
+            function setupCharts() {
+              if (state.charts.status) {
+                Object.values(state.charts).forEach(chart => chart.destroy());
+                state.charts = {};
+              }
+              const statusCtx = document.getElementById('statusChart')?.getContext('2d');
+              if (statusCtx) {
+                state.charts.status = new Chart(statusCtx, {
+                  type: 'doughnut',
+                  data: {
+                    labels: state.statuses,
+                    datasets: [{
+                      data: [0, 0, 0, 0],
+                      backgroundColor: ['#6c757d', '#0dcaf0', '#198754', '#dc3545']
+                    }]
+                  },
+                  options: { responsive: true, maintainAspectRatio: false }
+                });
+              }
+
+              const timelineCtx = document.getElementById('timelineChart')?.getContext('2d');
+              if (timelineCtx) {
+                state.charts.timeline = new Chart(timelineCtx, {
+                  type: 'line',
+                  data: {
+                    labels: [],
+                    datasets: [{
+                      label: 'Applications',
+                      data: [],
+                      borderColor: '#0d6efd',
+                      fill: true,
+                      tension: 0.1
+                    }]
+                  },
+                  options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+                });
+              }
+
+              const typeCtx = document.getElementById('typeChart')?.getContext('2d');
+              if (typeCtx) {
+                state.charts.type = new Chart(typeCtx, {
+                  type: 'bar',
+                  data: {
+                    labels: state.jobTypes,
+                    datasets: [{
+                      data: [0, 0, 0],
+                      backgroundColor: ['#ff9f40', '#36a2eb', '#9966ff']
+                    }]
+                  },
+                  options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+                });
+              }
+            }
+
+            function updateCharts() {
+              const start = new Date(document.getElementById('analyticsStartDate')?.value || '1900-01-01');
+              const end = new Date(document.getElementById('analyticsEndDate')?.value || '9999-12-31');
+              const filteredApps = state.filteredApplications.filter(app => {
+                const date = new Date(app.dateApplied);
+                return date >= start && date <= end;
+              });
+
+              if (state.charts.status) {
+                state.charts.status.data.datasets[0].data = state.statuses.map(s => filteredApps.filter(a => a.status === s).length);
+                state.charts.status.update();
+              }
+
+              if (state.charts.timeline) {
+                const appsByDate = {};
+                filteredApps.forEach(app => {
+                  const date = new Date(app.dateApplied);
+                  const formattedDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000).toLocaleDateString();
+                  appsByDate[formattedDate] = (appsByDate[formattedDate] || 0) + 1;
+                });
+                const timelineLabels = Object.keys(appsByDate).sort((a, b) => new Date(a) - new Date(b));
+                state.charts.timeline.data.labels = timelineLabels;
+                state.charts.timeline.data.datasets[0].data = timelineLabels.map(d => appsByDate[d]);
+                state.charts.timeline.update();
+              }
+
+              if (state.charts.type) {
+                state.charts.type.data.datasets[0].data = state.jobTypes.map(t => filteredApps.filter(a => a.type === t).length);
+                state.charts.type.update();
+              }
+
+              const offerCount = filteredApps.filter(a => a.status === 'Offer').length;
+              const total = filteredApps.length;
+              document.getElementById('successRate').textContent = total ? `${Math.round((offerCount / total) * 100)}%` : '0%';
+            }
+
+            function exportChart(chart, filename) {
+              if (!chart) {
+                showToast('Chart not available', 'danger');
+                return;
+              }
+              try {
+                const link = document.createElement('a');
+                link.href = chart.toBase64Image();
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                showToast('Chart exported successfully', 'success');
+              } catch (error) {
+                console.error('Chart export error:', error);
+                showToast('Chart export failed', 'danger');
+              }
+            }
+          </script>
+        </body>
+        </html>
