@@ -561,6 +561,7 @@
   <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js" defer></script>
 
   <script>
+    // Register the service worker
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/job-tracker/service-worker.js')
@@ -572,32 +573,36 @@
           });
       });
     }
-    // Database Setup
-    if (typeof Dexie === 'undefined') {
-      console.error('Dexie library failed to load. Please check the script inclusion.');
-      showToast('Database unavailable. Please try again later.', 'danger');
-      return;
-    }
-    const db = new Dexie("JobApplicationsDB");
-    db.version(32).stores({
-      applications: "++id,company,position,[dateApplied+status],type,location,jobSource,status,notes,attachments",
-      backups: "++id,timestamp,data"
-    });
-    // Application State
-    const state = {
-      currentPage: 1,
-      itemsPerPage: 10,
-      currentEditId: null,
-      filteredApplications: [],
-      applications: [],
-      statuses: ['Applied', 'Interview', 'Offer', 'Rejected'],
-      jobTypes: ['Onsite', 'Remote', 'Hybrid'],
-      charts: {},
-      currentAttachments: [],
-      editAttachments: [],
-      milestones: [100, 150, 200],
-      applicationGoal: parseInt(localStorage.getItem('applicationGoal')) || 200
-    };
+
+    // App Initialization
+    function init() {
+      // Database Setup
+      if (typeof Dexie === 'undefined') {
+        console.error('Dexie library failed to load. Please check the script inclusion.');
+        showToast('Database unavailable. Please try again later.', 'danger');
+        return; // Now valid because it's inside a function
+      }
+      const db = new Dexie("JobApplicationsDB");
+      db.version(32).stores({
+        applications: "++id,company,position,[dateApplied+status],type,location,jobSource,status,notes,attachments",
+        backups: "++id,timestamp,data"
+      });
+
+      // Application State
+      const state = {
+        currentPage: 1,
+        itemsPerPage: 10,
+        currentEditId: null,
+        filteredApplications: [],
+        applications: [],
+        statuses: ['Applied', 'Interview', 'Offer', 'Rejected'],
+        jobTypes: ['Onsite', 'Remote', 'Hybrid'],
+        charts: {},
+        currentAttachments: [],
+        editAttachments: [],
+        milestones: [100, 150, 200],
+        applicationGoal: parseInt(localStorage.getItem('applicationGoal')) || 200
+      };
 
     // DOM Elements
     const activeTableBody = document.querySelector('#activeApplicationsTable tbody');
@@ -615,6 +620,7 @@
       try {
         console.log('Initializing app');
         document.body.dataset.theme = localStorage.getItem('theme') || 'light';
+        init();
         await db.open();
         await loadApplications();
         initEventListeners();
