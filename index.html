@@ -39,7 +39,7 @@
       background-color: var(--bg-color);
       color: var(--text-color);
       transition: all 0.3s ease;
-      font-size: 16px; /* Base font size for better readability */
+      font-size: 16px;
     }
     .container-fluid {
       padding: 10px;
@@ -557,9 +557,9 @@
   <!-- JavaScript Libraries (minified and deferred for performance) -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/dexie@3.2.2/dist/dexie.min.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.28/dist/jspdf.plugin.autotable.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js" defer></script>
 
@@ -580,7 +580,7 @@
     // Database Setup
     const db = new Dexie("JobApplicationsDB");
     db.version(32).stores({
-      applications: "++id,company,position,[dateApplied+status],type,location,jobSource,status",
+      applications: "++id,company,position,[dateApplied+status],type,location,jobSource,status,notes,attachments",
       backups: "++id,timestamp,data"
     });
 
@@ -614,6 +614,7 @@
     // Initialization
     document.addEventListener("DOMContentLoaded", async () => {
       try {
+        console.log('Initializing app');
         document.body.dataset.theme = localStorage.getItem('theme') || 'light';
         await db.open();
         await loadApplications();
@@ -628,6 +629,7 @@
 
     // Theme Toggle
     document.getElementById('themeToggle').addEventListener('click', () => {
+      console.log('Theme toggle clicked');
       const newTheme = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
       document.body.dataset.theme = newTheme;
       localStorage.setItem('theme', newTheme);
@@ -650,10 +652,10 @@
     function scheduleDailyReminder() {
       setInterval(() => {
         const now = new Date();
-        if (now.getHours() === 9 && now.getMinutes() === 0) { // 9:00 AM daily
+        if (now.getHours() === 9 && now.getMinutes() === 0) {
           sendNotification('Job Tracker Reminder', 'Have you added your job applications today?');
         }
-      }, 60000); // Check every minute
+      }, 60000);
     }
 
     function sendNotification(title, body) {
@@ -671,6 +673,7 @@
     // Core Application Functions
     async function loadApplications() {
       try {
+        console.log('Loading applications');
         let apps = await db.applications.orderBy('dateApplied').reverse().toArray();
         apps = apps.map(app => ({
           ...app,
@@ -683,7 +686,7 @@
         filterApplications(document.getElementById('searchInput')?.value || '');
         renderApplicationsTable();
         renderPagination();
-        if (!state.charts.status) setupCharts();
+        setupCharts();
         updateCharts();
         updateGoalProgress();
 
@@ -724,7 +727,7 @@
     function renderApplicationRow(tableBody, app, appNumber) {
       const row = tableBody.insertRow();
       row.className = 'align-middle';
-      row.dataset.id = app.id; // For touch gestures
+      row.dataset.id = app.id;
       const dateApplied = new Date(app.dateApplied);
       const formattedDate = new Date(dateApplied.getTime() + dateApplied.getTimezoneOffset() * 60000).toLocaleDateString();
       row.innerHTML = `
@@ -753,265 +756,285 @@
 
       if (app.attachments?.length) {
         const attachmentsBtn = document.createElement('button');
-                attachmentsBtn.className = 'btn btn-sm btn-outline-secondary me-1';
-                attachmentsBtn.title = `${app.attachments.length} Attachment(s)`;
-                attachmentsBtn.setAttribute('aria-label', 'View attachments');
-                attachmentsBtn.innerHTML = '<i class="fas fa-paperclip"></i>';
-                attachmentsBtn.addEventListener('click', () => showAttachmentsPopup(app.attachments));
-                actionsCell.appendChild(attachmentsBtn);
+        attachmentsBtn.className = 'btn btn-sm btn-outline-secondary me-1';
+        attachmentsBtn.title = `${app.attachments.length} Attachment(s)`;
+        attachmentsBtn.setAttribute('aria-label', 'View attachments');
+        attachmentsBtn.innerHTML = '<i class="fas fa-paperclip"></i>';
+        attachmentsBtn.addEventListener('click', () => showAttachmentsPopup(app.attachments));
+        actionsCell.appendChild(attachmentsBtn);
+      }
+
+      const editBtn = document.createElement('button');
+      editBtn.className = 'btn btn-sm btn-outline-warning me-1';
+      editBtn.setAttribute('aria-label', 'Edit application');
+      editBtn.innerHTML = '<i class="fas fa-edit"></i>';
+      editBtn.addEventListener('click', () => openEditModal(app));
+      actionsCell.appendChild(editBtn);
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'btn btn-sm btn-outline-danger';
+      deleteBtn.setAttribute('aria-label', 'Delete application');
+      deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+      deleteBtn.addEventListener('click', () => deleteApplication(app.id));
+      actionsCell.appendChild(deleteBtn);
+
+      const hammer = new Hammer(row);
+      hammer.on('swipeleft', () => {
+        if (confirm('Delete this application?')) {
+          deleteApplication(app.id);
+        }
+      });
+    }
+
+    function showAttachmentsPopup(attachments) {
+      const popup = document.createElement('div');
+      popup.className = 'card shadow';
+      popup.style.position = 'fixed';
+      popup.style.zIndex = '1000';
+      popup.style.minWidth = '250px';
+      popup.style.maxWidth = '90%';
+      popup.style.maxHeight = '50vh';
+      popup.style.overflowY = 'auto';
+
+      const popupHeader = document.createElement('div');
+      popupHeader.className = 'card-header bg-primary text-white';
+      popupHeader.innerHTML = '<h6 class="mb-0">Attachments</h6>';
+
+      const popupBody = document.createElement('div');
+      popupBody.className = 'card-body p-2';
+
+      attachments.forEach(attachment => {
+        const item = document.createElement('div');
+        item.className = 'attachment-item';
+        item.innerHTML = `
+          <i class="fas fa-paperclip attachment-icon"></i>
+          <span class="text-truncate" style="max-width: 150px;">${attachment.name || 'Unnamed'}</span>
+          <a href="${attachment.data}" download="${attachment.name}" class="btn btn-sm btn-link text-primary ms-auto">
+            <i class="fas fa-download"></i>
+          </a>
+        `;
+        popupBody.appendChild(item);
+      });
+
+      popup.appendChild(popupHeader);
+      popup.appendChild(popupBody);
+
+      popup.style.left = '50%';
+      popup.style.top = '50%';
+      popup.style.transform = 'translate(-50%, -50%)';
+
+      document.body.appendChild(popup);
+
+      const closePopup = (e) => {
+        if (!popup.contains(e.target)) {
+          document.body.removeChild(popup);
+          document.removeEventListener('click', closePopup);
+        }
+      };
+
+      setTimeout(() => document.addEventListener('click', closePopup), 100);
+    }
+
+    // Milestone Functions
+    function checkMilestones(appCount) {
+      const celebratedMilestones = JSON.parse(localStorage.getItem('celebratedMilestones')) || [];
+      const reachedMilestone = state.milestones.find(milestone => appCount >= milestone && !celebratedMilestones.includes(milestone));
+
+      if (reachedMilestone) {
+        document.getElementById('milestoneMessage').textContent = `Congratulations! You've reached ${reachedMilestone} applications!`;
+        milestoneModal.show();
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+        sendNotification('Milestone Achieved!', `You've reached ${reachedMilestone} applications!`);
+        celebratedMilestones.push(reachedMilestone);
+        localStorage.setItem('celebratedMilestones', JSON.stringify(celebratedMilestones));
+      }
+    }
+
+    // Goal Progress
+    function updateGoalProgress() {
+      const totalApps = state.applications.length;
+      const goal = state.applicationGoal;
+      const percentage = goal > 0 ? Math.min((totalApps / goal) * 100, 100) : 0;
+      console.log('Updating goal progress:', { totalApps, goal, percentage });
+
+      document.getElementById('applicationGoal').textContent = goal;
+      document.getElementById('progressPercentage').textContent = `${Math.round(percentage)}%`;
+      const progressBar = document.getElementById('goalProgressBar');
+      progressBar.style.width = `${percentage}%`;
+      progressBar.setAttribute('aria-valuenow', percentage);
+    }
+
+    // Event Listeners
+    function initEventListeners() {
+      ['company', 'position', 'dateApplied', 'type'].forEach(id => {
+        document.getElementById(id)?.addEventListener('input', validateField);
+        document.getElementById(`edit${id.charAt(0).toUpperCase() + id.slice(1)}`)?.addEventListener('input', validateField);
+      });
+
+      jobForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        console.log('Form submitted');
+        if (!jobForm.checkValidity()) {
+          showToast('Please fill all required fields', 'danger');
+          return;
+        }
+        const newApp = {
+          company: document.getElementById('company').value,
+          position: document.getElementById('position').value,
+          dateApplied: document.getElementById('dateApplied').value,
+          type: document.getElementById('type').value,
+          location: document.getElementById('location').value,
+          salary: document.getElementById('salary').value || '-',
+          jobSource: document.getElementById('jobSource').value,
+          notes: document.getElementById('notes').value,
+          status: 'Applied',
+          attachments: state.currentAttachments
+        };
+        try {
+          console.log('Adding application:', newApp);
+          await db.applications.add(newApp);
+          console.log('Application added successfully');
+          jobForm.reset();
+          state.currentAttachments = [];
+          document.getElementById('attachmentsContainer').innerHTML = '';
+          await loadApplications();
+          updateGoalProgress();
+          showToast('Application added!', 'success');
+        } catch (error) {
+          console.error('Error adding application:', error);
+          showToast('Failed to add application', 'danger');
+        }
+      });
+
+      editForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        console.log('Edit form submitted');
+        if (!editForm.checkValidity()) {
+          showToast('Please fill all required fields', 'danger');
+          return;
+        }
+        const updatedApp = {
+          company: document.getElementById('editCompany').value,
+          position: document.getElementById('editPosition').value,
+          dateApplied: document.getElementById('editDateApplied').value,
+          type: document.getElementById('editType').value,
+          location: document.getElementById('editLocation').value,
+          salary: document.getElementById('editSalary').value || '-',
+          jobSource: document.getElementById('editJobSource').value,
+          notes: document.getElementById('editNotes').value,
+          status: document.getElementById('editStatus').value,
+          attachments: state.editAttachments
+        };
+        try {
+          console.log('Updating application:', updatedApp);
+          await db.applications.update(state.currentEditId, updatedApp);
+          editModal.hide();
+          await loadApplications();
+          updateGoalProgress();
+          showToast('Application updated!', 'success');
+        } catch (error) {
+          console.error('Error updating application:', error);
+          showToast('Failed to update application', 'danger');
+        }
+      });
+
+      document.getElementById('attachmentInput')?.addEventListener('change', handleFileSelect);
+      document.getElementById('editAttachmentInput')?.addEventListener('change', handleEditFileSelect);
+
+      let debounceTimer;
+      document.getElementById('searchInput')?.addEventListener('input', (e) => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => filterApplications(e.target.value), 300);
+      });
+      document.getElementById('clearSearch')?.addEventListener('click', () => {
+        document.getElementById('searchInput').value = '';
+        filterApplications('');
+      });
+
+      document.getElementById('importDataBtn')?.addEventListener('click', () => {
+        console.log('Import button clicked');
+        document.getElementById('importFileInput').click();
+      });
+      document.getElementById('importFileInput')?.addEventListener('change', async (e) => {
+        console.log('Import file selected');
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = async (event) => {
+            try {
+              const apps = JSON.parse(event.target.result);
+              if (Array.isArray(apps)) {
+                await db.applications.clear();
+                await db.applications.bulkAdd(apps);
+                showToast(`Imported ${apps.length} applications!`, 'success');
+                await loadApplications();
+                updateGoalProgress();
+              } else {
+                showToast('Invalid JSON format', 'danger');
               }
-
-              const editBtn = document.createElement('button');
-              editBtn.className = 'btn btn-sm btn-outline-warning me-1';
-              editBtn.setAttribute('aria-label', 'Edit application');
-              editBtn.innerHTML = '<i class="fas fa-edit"></i>';
-              editBtn.addEventListener('click', () => openEditModal(app));
-              actionsCell.appendChild(editBtn);
-
-              const deleteBtn = document.createElement('button');
-              deleteBtn.className = 'btn btn-sm btn-outline-danger';
-              deleteBtn.setAttribute('aria-label', 'Delete application');
-              deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
-              deleteBtn.addEventListener('click', () => deleteApplication(app.id));
-              actionsCell.appendChild(deleteBtn);
-
-              // Add touch gestures using Hammer.js
-              const hammer = new Hammer(row);
-              hammer.on('swipeleft', () => {
-                if (confirm('Delete this application?')) {
-                  deleteApplication(app.id);
-                }
-              });
+            } catch (error) {
+              console.error('Import error:', error);
+              showToast('Failed to import data', 'danger');
             }
+          };
+          reader.onerror = () => showToast('Error reading file', 'danger');
+          reader.readAsText(file);
+        }
+      });
 
-            function showAttachmentsPopup(attachments) {
-              const popup = document.createElement('div');
-              popup.className = 'card shadow';
-              popup.style.position = 'fixed';
-              popup.style.zIndex = '1000';
-              popup.style.minWidth = '250px';
-              popup.style.maxWidth = '90%';
-              popup.style.maxHeight = '50vh';
-              popup.style.overflowY = 'auto';
+      document.getElementById('exportJSON')?.addEventListener('click', async () => {
+        console.log('Export JSON button clicked');
+        try {
+          const apps = await db.applications.toArray();
+          const jsonString = JSON.stringify(apps, null, 2);
+          const blob = new Blob([jsonString], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = 'job-applications.json';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          showToast(`Exported ${apps.length} applications`, 'success');
+        } catch (error) {
+          console.error('Export JSON error:', error);
+          showToast('Export failed', 'danger');
+        }
+      });
 
-              const popupHeader = document.createElement('div');
-              popupHeader.className = 'card-header bg-primary text-white';
-              popupHeader.innerHTML = '<h6 class="mb-0">Attachments</h6>';
+      document.getElementById('exportPDF')?.addEventListener('click', exportToPDF);
 
-              const popupBody = document.createElement('div');
-              popupBody.className = 'card-body p-2';
-
-              attachments.forEach(attachment => {
-                const item = document.createElement('div');
-                item.className = 'attachment-item';
-                item.innerHTML = `
-                  <i class="fas fa-paperclip attachment-icon"></i>
-                  <span class="text-truncate" style="max-width: 150px;">${attachment.name || 'Unnamed'}</span>
-                  <a href="${attachment.data}" download="${attachment.name}" class="btn btn-sm btn-link text-primary ms-auto">
-                    <i class="fas fa-download"></i>
-                  </a>
-                `;
-                popupBody.appendChild(item);
+      document.getElementById('analytics-tab')?.addEventListener('shown.bs.tab', () => {
+        console.log('Analytics tab shown');
+        setupCharts();
+        Object.values(state.charts).forEach(chart => chart.resize());
+      });
+      ['analyticsStartDate', 'analyticsEndDate'].forEach(id => {
+        document.getElementById(id)?.addEventListener('change', updateCharts);
+      });
+      document.getElementById('exportStatusChart')?.addEventListener('click', () => {
+        console.log('Export Status Chart clicked');
+        exportChart(state.charts.status, 'status-chart.png');
+      });
+      document.getElementById('exportTimelineChart')?.addEventListener('click', () => {
+        console.log('Export Timeline Chart clicked');
+        exportChart(state.charts.timeline, 'timeline-chart.png');
               });
-
-              popup.appendChild(popupHeader);
-              popup.appendChild(popupBody);
-
-              popup.style.left = '50%';
-              popup.style.top = '50%';
-              popup.style.transform = 'translate(-50%, -50%)';
-
-              document.body.appendChild(popup);
-
-              const closePopup = (e) => {
-                if (!popup.contains(e.target)) {
-                  document.body.removeChild(popup);
-                  document.removeEventListener('click', closePopup);
-                }
-              };
-
-              setTimeout(() => document.addEventListener('click', closePopup), 100);
-            }
-
-            // Milestone Functions
-            function checkMilestones(appCount) {
-              const celebratedMilestones = JSON.parse(localStorage.getItem('celebratedMilestones')) || [];
-              const reachedMilestone = state.milestones.find(milestone => appCount >= milestone && !celebratedMilestones.includes(milestone));
-
-              if (reachedMilestone) {
-                document.getElementById('milestoneMessage').textContent = `Congratulations! You've reached ${reachedMilestone} applications!`;
-                milestoneModal.show();
-                confetti({
-                  particleCount: 100,
-                  spread: 70,
-                  origin: { y: 0.6 }
-                });
-                sendNotification('Milestone Achieved!', `You've reached ${reachedMilestone} applications!`);
-                celebratedMilestones.push(reachedMilestone);
-                localStorage.setItem('celebratedMilestones', JSON.stringify(celebratedMilestones));
-              }
-            }
-
-            // Goal Progress
-            function updateGoalProgress() {
-              const totalApps = state.applications.length;
-              const goal = state.applicationGoal;
-              const percentage = goal > 0 ? Math.min((totalApps / goal) * 100, 100) : 0;
-
-              document.getElementById('applicationGoal').textContent = goal;
-              document.getElementById('progressPercentage').textContent = `${Math.round(percentage)}%`;
-              const progressBar = document.getElementById('goalProgressBar');
-              progressBar.style.width = `${percentage}%`;
-              progressBar.setAttribute('aria-valuenow', percentage);
-            }
-
-            // Event Listeners
-            function initEventListeners() {
-              ['company', 'position', 'dateApplied', 'type'].forEach(id => {
-                document.getElementById(id)?.addEventListener('input', validateField);
-                document.getElementById(`edit${id.charAt(0).toUpperCase() + id.slice(1)}`)?.addEventListener('input', validateField);
-              });
-
-              jobForm?.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                if (!jobForm.checkValidity()) {
-                  showToast('Please fill all required fields', 'danger');
-                  return;
-                }
-                const newApp = {
-                  company: document.getElementById('company').value,
-                  position: document.getElementById('position').value,
-                  dateApplied: document.getElementById('dateApplied').value,
-                  type: document.getElementById('type').value,
-                  location: document.getElementById('location').value,
-                  salary: document.getElementById('salary').value || '-',
-                  jobSource: document.getElementById('jobSource').value,
-                  notes: document.getElementById('notes').value,
-                  status: 'Applied',
-                  attachments: state.currentAttachments
-                };
-                try {
-                  await db.applications.add(newApp);
-                  jobForm.reset();
-                  state.currentAttachments = [];
-                  document.getElementById('attachmentsContainer').innerHTML = '';
-                  await loadApplications();
-                  updateGoalProgress();
-                  showToast('Application added!', 'success');
-                } catch (error) {
-                  console.error('Error adding application:', error);
-                  showToast('Failed to add application', 'danger');
-                }
-              });
-
-              editForm?.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                if (!editForm.checkValidity()) {
-                  showToast('Please fill all required fields', 'danger');
-                  return;
-                }
-                const updatedApp = {
-                  company: document.getElementById('editCompany').value,
-                  position: document.getElementById('editPosition').value,
-                  dateApplied: document.getElementById('editDateApplied').value,
-                  type: document.getElementById('editType').value,
-                  location: document.getElementById('editLocation').value,
-                  salary: document.getElementById('editSalary').value || '-',
-                  jobSource: document.getElementById('editJobSource').value,
-                  notes: document.getElementById('editNotes').value,
-                  status: document.getElementById('editStatus').value,
-                  attachments: state.editAttachments
-                };
-                try {
-                  await db.applications.update(state.currentEditId, updatedApp);
-                  editModal.hide();
-                  await loadApplications();
-                  updateGoalProgress();
-                  showToast('Application updated!', 'success');
-                } catch (error) {
-                  console.error('Error updating application:', error);
-                  showToast('Failed to update application', 'danger');
-                }
-              });
-
-              document.getElementById('attachmentInput')?.addEventListener('change', handleFileSelect);
-              document.getElementById('editAttachmentInput')?.addEventListener('change', handleEditFileSelect);
-
-              let debounceTimer;
-              document.getElementById('searchInput')?.addEventListener('input', (e) => {
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(() => filterApplications(e.target.value), 300);
-              });
-              document.getElementById('clearSearch')?.addEventListener('click', () => {
-                document.getElementById('searchInput').value = '';
-                filterApplications('');
-              });
-
-              document.getElementById('importDataBtn')?.addEventListener('click', () => document.getElementById('importFileInput').click());
-              document.getElementById('importFileInput')?.addEventListener('change', async (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                  const reader = new FileReader();
-                  reader.onload = async (event) => {
-                    try {
-                      const apps = JSON.parse(event.target.result);
-                      if (Array.isArray(apps)) {
-                        await db.applications.clear();
-                        await db.applications.bulkAdd(apps);
-                        showToast(`Imported ${apps.length} applications!`, 'success');
-                        await loadApplications();
-                        updateGoalProgress();
-                      } else {
-                        showToast('Invalid JSON format', 'danger');
-                      }
-                    } catch (error) {
-                      console.error('Import error:', error);
-                      showToast('Failed to import data', 'danger');
-                    }
-                  };
-                  reader.onerror = () => showToast('Error reading file', 'danger');
-                  reader.readAsText(file);
-                }
-              });
-
-              document.getElementById('exportJSON')?.addEventListener('click', async () => {
-                try {
-                  const apps = await db.applications.toArray();
-                  const jsonString = JSON.stringify(apps, null, 2);
-                  const blob = new Blob([jsonString], { type: 'application/json' });
-                  const url = URL.createObjectURL(blob);
-                  const link = document.createElement('a');
-                  link.href = url;
-                  link.download = 'job-applications.json';
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                  URL.revokeObjectURL(url);
-                  showToast(`Exported ${apps.length} applications`, 'success');
-                } catch (error) {
-                  console.error('Export JSON error:', error);
-                  showToast('Export failed', 'danger');
-                }
-              });
-
-              document.getElementById('exportPDF')?.addEventListener('click', exportToPDF);
-
-              document.getElementById('analytics-tab')?.addEventListener('shown.bs.tab', () => {
-                Object.values(state.charts).forEach(chart => chart.resize());
-              });
-              ['analyticsStartDate', 'analyticsEndDate'].forEach(id => {
-                document.getElementById(id)?.addEventListener('change', updateCharts);
-              });
-              document.getElementById('exportStatusChart')?.addEventListener('click', () => exportChart(state.charts.status, 'status-chart.png'));
-              document.getElementById('exportTimelineChart')?.addEventListener('click', () => exportChart(state.charts.timeline, 'timeline-chart.png'));
 
               document.getElementById('setGoalBtn')?.addEventListener('click', () => {
+                console.log('Set Goal button clicked');
                 document.getElementById('newGoal').value = state.applicationGoal;
                 setGoalModal.show();
               });
 
               document.getElementById('goalForm')?.addEventListener('submit', (e) => {
                 e.preventDefault();
+                console.log('Goal form submitted');
                 const newGoalInput = document.getElementById('newGoal');
                 const newGoal = parseInt(newGoalInput.value);
 
@@ -1117,6 +1140,7 @@
 
             // Utility Functions
             function showToast(message, type) {
+              console.log('Showing toast:', message, type);
               const toastEl = document.createElement('div');
               toastEl.className = `toast show align-items-center text-white bg-${type} border-0`;
               toastEl.innerHTML = `
@@ -1192,6 +1216,7 @@
             }
 
             async function openEditModal(app) {
+              console.log('Opening edit modal for app:', app.id);
               state.currentEditId = app.id;
               state.editAttachments = app.attachments || [];
               document.getElementById('editCompany').value = app.company;
@@ -1226,6 +1251,7 @@
 
             async function deleteApplication(id) {
               try {
+                console.log('Deleting application:', id);
                 await db.applications.delete(id);
                 await loadApplications();
                 updateGoalProgress();
@@ -1237,6 +1263,7 @@
             }
 
             function exportToPDF() {
+              console.log('Export PDF button clicked');
               try {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
@@ -1296,14 +1323,16 @@
               }
             }
 
-            // Analytics Charts (Lazy-loaded on demand)
+            // Analytics Charts
             function setupCharts() {
+              console.log('Setting up charts');
               if (state.charts.status) {
                 Object.values(state.charts).forEach(chart => chart.destroy());
                 state.charts = {};
               }
               const statusCtx = document.getElementById('statusChart')?.getContext('2d');
               if (statusCtx) {
+                console.log('Initializing status chart');
                 state.charts.status = new Chart(statusCtx, {
                   type: 'doughnut',
                   data: {
@@ -1319,6 +1348,7 @@
 
               const timelineCtx = document.getElementById('timelineChart')?.getContext('2d');
               if (timelineCtx) {
+                console.log('Initializing timeline chart');
                 state.charts.timeline = new Chart(timelineCtx, {
                   type: 'line',
                   data: {
@@ -1337,6 +1367,7 @@
 
               const typeCtx = document.getElementById('typeChart')?.getContext('2d');
               if (typeCtx) {
+                console.log('Initializing type chart');
                 state.charts.type = new Chart(typeCtx, {
                   type: 'bar',
                   data: {
@@ -1352,6 +1383,7 @@
             }
 
             function updateCharts() {
+              console.log('Updating charts');
               const start = new Date(document.getElementById('analyticsStartDate')?.value || '1900-01-01');
               const end = new Date(document.getElementById('analyticsEndDate')?.value || '9999-12-31');
               const filteredApps = state.filteredApplications.filter(app => {
@@ -1388,6 +1420,7 @@
             }
 
             function exportChart(chart, filename) {
+              console.log('Exporting chart:', filename);
               if (!chart) {
                 showToast('Chart not available', 'danger');
                 return;
