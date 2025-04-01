@@ -1,5 +1,5 @@
 // Service Worker for Job Application Tracker
-// Version: 1.0.1
+// Version: 1.0.2
 const CACHE_NAME = 'job-tracker-cache-v1';
 const BASE_PATH = '/job-tracker'; // Base path for GitHub Pages deployment
 
@@ -28,17 +28,14 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('Service Worker: Caching files');
-        // Use cache.addAll to fetch and cache all assets
         return cache.addAll(urlsToCache)
           .catch(error => {
             console.error('Service Worker: Failed to cache some assets:', error);
-            // Continue installation even if some assets fail to cache
             return Promise.resolve();
           });
       })
       .then(() => {
         console.log('Service Worker: Installation complete');
-        // Skip waiting to activate the new service worker immediately
         return self.skipWaiting();
       })
   );
@@ -61,7 +58,6 @@ self.addEventListener('activate', event => {
       })
       .then(() => {
         console.log('Service Worker: Activation complete');
-        // Take control of all clients immediately
         return self.clients.claim();
       })
   );
@@ -71,9 +67,20 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const requestUrl = new URL(event.request.url);
 
-  // Ignore non-GET requests (e.g., POST) and requests to external origins
-  if (event.request.method !== 'GET' || !requestUrl.origin === self.location.origin) {
-    event.respondWith(fetch(event.request));
+  // Ignore non-GET requests, requests from different origins, and unsupported schemes
+  const supportedSchemes = ['http', 'https'];
+  if (
+    event.request.method !== 'GET' ||
+    requestUrl.origin !== self.location.origin || // Fixed syntax error
+    !supportedSchemes.includes(requestUrl.protocol.split(':')[0]) // Ignore unsupported schemes
+  ) {
+    event.respondWith(fetch(event.request).catch(error => {
+      console.error('Service Worker: Fetch failed for unsupported request:', requestUrl.href, error);
+      return new Response('Request not supported.', {
+        status: 503,
+        statusText: 'Service Unavailable'
+      });
+    }));
     return;
   }
 
@@ -101,7 +108,6 @@ self.addEventListener('fetch', event => {
             })
             .catch(error => {
               console.error('Service Worker: Fetch failed:', error);
-              // Optionally return a fallback response (e.g., offline page)
               return new Response('Offline: Unable to fetch resource.', {
                 status: 503,
                 statusText: 'Service Unavailable'
